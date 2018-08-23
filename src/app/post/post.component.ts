@@ -3,75 +3,74 @@ import { Component, OnInit } from '@angular/core';
 import { PostService } from '../services/post.service';
 import { AppError } from '../common/app-error';
 import { NotFoundError } from '../common/not-found-error';
+import { BadInput } from '../common/bad-input';
 
 @Component({
-  selector: 'post',
+  selector: 'post1',
   templateUrl: './post.component.html',
   styleUrls: ['./post.component.css']
 })
 export class PostComponent implements OnInit  {
   
+  //variable que recibe los datos
   posts: any[];  
 
-  constructor(private service: PostService) {     
-  }   
+  //Begin
+  ngOnInit(){    
+    this.service.getAll()
+      .subscribe(posts => this.posts = posts);
+  }
 
+  constructor(private service: PostService) { }   
+    
   createPost(input: HTMLInputElement) {
     let post = { title: input.value }
-    input.value = '';      
-      this.service.createPost(post)
-      .subscribe(response => {
-      post['id'] = response.json().id;
-      this.posts.splice(0, 0, post);      
-    }, (error: Response ) => {
-      if( error.status == 400) 
-        {}
-      else {
-        alert('an unexpected error occurred.');
-        console.log(error);
-      }
+    this.posts.splice(0, 0, post);
 
-      
-    } );
- 
-  }
+    input.value = '';      
+
+    this.service.create(post)
+      .subscribe(
+        newPost => {
+          post['id'] = newPost.id;
+                    
+    }, (error: AppError ) => { // Instead of working with response such as 400
+     // we are going to work with specifi app error  
+     this.posts.splice(0, 1);
+
+     if( error instanceof BadInput){
+         //this.form.setErrors(error.originalError); 
+     }
+     else throw error;              
+    }); 
+  }  
+
 
   updatePost(post)  {   
-    this.service.updatePost(post)
-    .subscribe(Response => { 
-      console.log(Response.json() );
-    } , error => {
-      alert('an unexpected error occurred.');
-      console.log(error);
-    } );
+    this.service.update(post)
+      .subscribe(updatedPost => { 
+        console.log(Response);
+      });
   }
 
-  deletePost(post){    
-    this.service.deletePost(post)
-    .subscribe( 
-      response => {
-        let index = this.posts.indexOf(post);
-        this.posts.splice(index, 1);    
-    }, 
+  // delete post
+  deletePost(postdata){ 
+    let index = this.posts.indexOf(postdata);
+    this.posts.splice(index, 1);       
+    //delete post, json line is being received, it is expecting an ID
+    this.service.delete(postdata.id)
+    .subscribe( null, 
         (error: AppError ) => {
-        if(error instanceof NotFoundError )
-          alert('This post has already been deleted.');
-        else {
-          alert('an unexpected error when deleting has  occurred.');
-          console.log(error);
-        }      
-      } );
+          this.posts.splice(index, 0, postdata);
+
+          if(error instanceof NotFoundError ) {
+            alert('This post has already been deleted.');
+          }  
+          else throw error;                 
+        });
   }
 
-  ngOnInit(){    
-    this.service.getPost()
-    .subscribe( response => {
-      this.posts = response.json();
-    }, error => {
-      alert('an unexpected error occurred.');
-      console.log(error);
-    } );
-  }
+ 
 
     
 }
